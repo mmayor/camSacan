@@ -6,15 +6,35 @@ import time
 from pytesseract import Output
 from imutils.video import VideoStream
 import os
+import re
 
 
 
 
 
+
+
+def conTornos(img):
+    imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    ret, thresh = cv2.threshold(imgray, 127, 255, 0)
+    im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    return im2
+
+def maskNew2(img):
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # grayscale
+    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)  # threshold
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    dilated = cv2.dilate(thresh, kernel, iterations=13)  # dilate
+
+    return dilated
 
 def maskNew1(img):
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    #canny = cv2.Canny(gray_img, 100, 200)
+    # gray_img = canny
     ret1, th1 = cv2.threshold(gray_img, 127, 255, cv2.THRESH_BINARY)
+
     # th3 = cv2.adaptiveThreshold(gray_img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     # global thresholding
     ret1, th1 = cv2.threshold(gray_img, 127, 255, cv2.THRESH_BINARY)
@@ -25,7 +45,16 @@ def maskNew1(img):
     # Otsu's thresholding after Gaussian filtering
     blur = cv2.GaussianBlur(gray_img, (5, 5), 0)
     ret3, th3 = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return th2
+
+    ##other
+    ret, thresh1 = cv2.threshold(gray_img, 127, 255, cv2.THRESH_BINARY)
+    ret, thresh2 = cv2.threshold(gray_img, 127, 255, cv2.THRESH_BINARY_INV)
+    ret, thresh3 = cv2.threshold(gray_img, 127, 255, cv2.THRESH_TRUNC)
+    ret, thresh4 = cv2.threshold(gray_img, 127, 255, cv2.THRESH_TOZERO)
+    ret, thresh5 = cv2.threshold(gray_img, 127, 255, cv2.THRESH_TOZERO_INV)
+
+
+    return th3
 
 def maskNew(img):
     frame = cv2.resize(img,(400, 300), interpolation=cv2.INTER_CUBIC)
@@ -126,6 +155,7 @@ def canny(image):
 
 
 
+
 # skew correction
 def deskew(image):
     coords = np.column_stack(np.where(image > 0))
@@ -198,18 +228,21 @@ while True:
     # frame = detectaCode(frame)
     # frame = contrast(frame)
     # frame = thresHolding(frame)
+    # frame = maskNew1(frame)
+    # frame = conTornos(frame)
     frame = maskNew1(frame)
+
 
 
 
 
     d = pytesseract.image_to_data(frame, output_type=Output.DICT)
     #print(d.keys())
-    print(d['text'])
+    # print(d['text'])
 
     ## EXAMPLE
     text = pytesseract.image_to_string(frame, config='--psm 11')
-    print("Detected Number is:", text)
+    # print("Detected Number is:", text)
 
 
     n_boxes = len(d['text'])
@@ -218,8 +251,19 @@ while True:
              (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
              frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-    cv2.imshow('Frame', frame)
+    # cv2.imshow('Frame', frame)
     # Salir con 'ESC'
+
+
+    patronNew = re.compile('^FKI000[0-9][0-9]')
+    findText = re.fullmatch(patronNew, text, flags=0)
+    if findText:
+        print("Detected Number is:", text)
+        break
+
+
+
+
     k = cv2.waitKey(5) & 0xFF
     if k == 27:
         break
@@ -232,8 +276,14 @@ if not args.get("video", False):
 else:
     vs.release()
 
+
+
 # close all windows
 cv2.destroyAllWindows()
+
+
+
+
 
 ##https://8080-ff616d67-54cf-403c-a798-3e33eb46a10b.ws-us02.gitpod.io/
 
